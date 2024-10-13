@@ -53,11 +53,16 @@ always @(posedge clk or negedge rst) begin
         allout <= 0; // Initialize allout to zero        
     end else begin
         // Shift register logic
-        temp = {out[2], out[1], out[0]};
+        temp = {out[2], out[1], out[0]}; //(parth: I think this statement needs to go in the for loop,line 66
+                                         //loading same value in allout over and over)
         for (count = 0; count < 10; count = count + 1) begin
             out[2] <= out[1];
             out[1] <= out[0];
             out[0] <= feedback;
+            /*
+            out[1]<=out[2];
+            out[0]<=out[1];
+            out[2]<=feedback; (parth: I think this is the correct logic) */
             allout[(count*3)+2 -: 3] <= temp; // Store the shifted value
         end
     end
@@ -84,10 +89,10 @@ lfsr lfsr_inst (
         .rst(rst),
         .allout(allout)
     );
-reg [31:0] temp;
-reg [31:0] rcon [0:9]; // Round constants
-reg [5:0]sum;
-reg [255:0] internal_key;
+    reg [31:0] temp; 
+    reg [31:0] rcon [0:9]; // Round constants (10 registers that are 32 bit wide)
+    reg [5:0]sum; 
+    reg [255:0] internal_key; 
 initial begin
         // Initialize round constants (Rcon)
         rcon[0] = 32'h01000000;
@@ -102,7 +107,7 @@ initial begin
         rcon[9] = 32'h36000000;
     end
 
-    integer i , j,a ;
+    integer i, j, a ;
     always @(*) begin
         // Initialize the first round key (same as the original cipher key)
         internal_key[127:0] = cipher_key; 
