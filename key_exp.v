@@ -48,9 +48,9 @@ assign feedback = out[1] ^ out[0];
 integer count;
 reg [2:0] temp;
 always @(posedge clk or negedge rst) begin
-    if (!rst) begin
+    if (!rst) begin  //(parth: So are all resets active low)
         out <= seed; // Initialize with seed
-        allout <= 0; // Initialize allout to zero
+        allout <= 0; // Initialize allout to zero        
     end else begin
         // Shift register logic
         temp = {out[2], out[1], out[0]};
