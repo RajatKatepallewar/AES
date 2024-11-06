@@ -19,80 +19,19 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-/*
-module dff (
-    output reg q,
-    input d,
-    input clk,
-    input rst
-);
-
-always @(posedge clk or negedge rst) begin
-    if (!rst) // Reset logic
-        q <= 0; 
-    else 
-        q <= d; // Non-blocking assignment for flip-flop behavior
-end
-endmodule
-// code is not instantiated 
-*/
-module lfsr (
-    input [2:0] seed,
-    output reg [2:0] out,
-    input clk,
-    input rst,
-    output reg [29:0] allout
-);
-wire feedback;
-assign feedback = out[1] ^ out[0];
-integer count;
-reg [2:0] temp;
-always @(posedge clk or negedge rst) begin
-    if (!rst) begin  //(parth: So are all resets active low)
-        out <= seed; // Initialize with seed
-        allout <= 0; // Initialize allout to zero        
-    end else begin
-        // Shift register logic
-        temp = {out[2], out[1], out[0]}; //(parth: I think this statement needs to go in the for loop,line 66
-                                         //loading same value in allout over and over)
-        for (count = 0; count < 10; count = count + 1) begin
-            out[2] <= out[1];
-            out[1] <= out[0];
-            out[0] <= feedback;
-            /*
-            out[1]<=out[2];
-            out[0]<=out[1];
-            out[2]<=feedback; (parth: I think this is the correct logic) */
-            allout[(count*3)+2 -: 3] <= temp; // Store the shifted value
-        end
-    end
-end
-endmodule
-
-
-
-
 module key_exp(
-input [127:0] cipher_key,        // 128-bit input key
+input [127:0] cipher_key,    // 128-bit input key
+input [2:0] seed,
 output reg [1407:0] expanded_key // 11 round keys (11 * 128 bits = 1408 bits)
 );
-wire [2:0] seed;
-wire [2:0] out;
-wire clk;
-wire rst;
-wire [29:0] allout;
 
-lfsr lfsr_inst (
-        .seed(seed),
-        .out(),
-        .clk(clk),
-        .rst(rst),
-        .allout(allout)
-    );
-    reg [31:0] temp; 
-    reg [31:0] rcon [0:9]; // Round constants (10 registers that are 32 bit wide)
-    reg [5:0]sum; 
-    reg [255:0] internal_key; 
+
+
+reg [31:0] temp;
+reg [29:0] allout;
+reg [31:0] rcon [0:9]; // Round constants
+reg [7:0]sum; //7*10
+reg [255:0] internal_key;
 initial begin
         // Initialize round constants (Rcon)
         rcon[0] = 32'h01000000;
@@ -106,46 +45,10 @@ initial begin
         rcon[8] = 32'h1b000000;
         rcon[9] = 32'h36000000;
     end
-
-    integer i, j, a ;
-    always @(*) begin
-        // Initialize the first round key (same as the original cipher key)
-        internal_key[127:0] = cipher_key; 
-        expanded_key[127:0]=cipher_key;
-        sum=0;  
-        
-        for (i=1 ; i<11 ; i=i+1 )
-        begin 
-            for (j=0 ;j<allout[((i-1)*3)+2-:3] ;j=j+1)
-            begin 
-            
-            temp = internal_key[(128) -: 32];    //Get the last 32-bit word of the previous round key
-            
-            temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
-                                // Substitute Word (SubWord)
-            temp[31:24] = sbox(temp[31:24]);
-            temp[23:16] = sbox(temp[23:16]);
-            temp[15:8]  = sbox(temp[15:8]);
-            temp[7:0]   = sbox(temp[7:0]);
-            temp = temp ^ rcon[sum%10];          // XOR with Rcon
-            // Generate the first word of the current round key
-            internal_key[128 +: 32] = internal_key[128 +: 32] ^ temp;
-
-            // Generate the next 3 words of the round key
-            internal_key[(128) + 32 +: 32] = internal_key[32 +: 32] ^ internal_key[128 +: 32];
-            internal_key[(128) + 64 +: 32] = internal_key[64 +: 32] ^ internal_key[ 32 +: 32];
-            internal_key[(128) + 96 +: 32] = internal_key[96 +: 32] ^ internal_key[ 64 +: 32];
-            sum=sum+1;
-            internal_key[127:0]=internal_key[255:128];
-            
-            end 
-            expanded_key[(i*128)+127-:128]=internal_key[127:0];
-        end
-        end 
-        
+  
         function [7:0] sbox(input [7:0] byte_in);
         case(byte_in)
-             8'h00: sbox = 8'h63;
+            8'h00: sbox = 8'h63;
             8'h01: sbox = 8'h7C;
             8'h02: sbox = 8'h77;
             8'h03: sbox = 8'h7B;
@@ -405,4 +308,269 @@ initial begin
         endcase
     endfunction
         
+    integer  j,a ;
+    always @(*) begin
+   
+    case(seed)
+        3'b000: allout = 30'b001001001001001001001001001001;
+        3'b001: allout = 30'b001100010101110111011001100010;
+        3'b010: allout = 30'b010101110111011001100010101110;
+        3'b011: allout = 30'b011001100010101110111011001100;
+        3'b100: allout = 30'b100010101110111011001100010101;
+        3'b101: allout = 30'b101110111011001100010101110111;
+        3'b110: allout = 30'b110111011001100010101110111011;
+        3'b111: allout = 30'b111011001100010101110111011001;
+        default:allout = 30'b000000000000000000000000000000;
+        
+        endcase
+      
+        // Initialize the first round key (same as the original cipher key)
+           internal_key[127:0] = cipher_key; 
+        expanded_key[127:0]=cipher_key;
+ 
+            sum=0; 
+ 
+       
+            for (j=0 ; j<allout[29:27];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[255:128]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[26:24];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[383:256]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[23:21];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[511:384]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[20:18];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[639:512]=internal_key[127:0];
+            end
+            
+            for (j=0 ; j<allout[17:15];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[767:640]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[14:12];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[895:768]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[11:9];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[1023:896]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[8:6];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[1151:1024]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[5:3];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[1279:1152]=internal_key[127:0];
+            end
+            for (j=0 ; j<allout[2:0];j=j+1)
+                begin 
+            
+                        temp = internal_key[ 31:0 ];    //Get the last 32-bit word of the previous round key
+            
+                        temp = {temp[23:0], temp[31:24]};    //left rotate by 1 bit 
+                                // Substitute Word (SubWord)
+                        temp[31:24] = sbox(temp[31:24]);
+                        temp[23:16] = sbox(temp[23:16]);
+                        temp[15:8]  = sbox(temp[15:8]);
+                        temp[7:0]   = sbox(temp[7:0]);
+                        temp = temp ^ rcon[sum%10];          // XOR with Rcon
+            // Generate the first word of the current round key
+                        internal_key[255:224] = internal_key[127:96] ^ temp; //w0^g
+
+            // Generate the next 3 words of the round key
+                        internal_key[223:192] = internal_key[ 95:64 ] ^ internal_key[255:224];
+                        internal_key[191:160] = internal_key[63:32] ^ internal_key[223:192];
+                        internal_key[159:128] = internal_key[31:0] ^ internal_key[191:160];
+                        sum=sum+1;
+                        internal_key[127:0]=internal_key[255:128];
+            
+                  expanded_key[1407:1280]=internal_key[127:0];
+            end
+        end 
 endmodule
