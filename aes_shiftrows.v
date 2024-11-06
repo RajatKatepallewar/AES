@@ -20,30 +20,34 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module aes_shiftrows(
-    input [127:0] state_in_row,
-    output [127:0] state_out_row
-    );
-    
-    //row 0  no shift 
-    assign state_out_row[127:120]=state_in_row[127:120];
-    assign state_out_row[95:88]=state_in_row[95:88];
-    assign state_out_row[63:56]=state_in_row[63:56];
-    assign state_out_row[31:24]=state_in_row[31:24];
-//row1    left shift 1 
-    assign state_out_row[55:48] = state_in_row[87:80];  
-    assign state_out_row[87:80] = state_in_row[119:112];   
-    assign state_out_row[119:112] = state_in_row[23:16];   
-    assign state_out_row[23:16] = state_in_row[55:48];   
-//row 2     left shift 2
-    assign state_out_row[111:104] = state_in_row[47:40];
-    assign state_out_row[79:72] = state_in_row[15:8];
-    assign state_out_row[47:40] = state_in_row[111:104];
-    assign state_out_row[15:8] = state_in_row[79:72];
-//row 3    left shift 3
-    assign state_out_row[7:0] = state_in_row[103:96];  
-    assign state_out_row[103:96] = state_in_row[71:64];  
-    assign state_out_row[71:64] = state_in_row[39:32];  
-    assign state_out_row[39:32] = state_in_row[7:0];  
+module aes_shiftrows (
+    input  wire [127:0] state_in_row,  // 128-bit input
+    output wire [127:0] state_out_row  // 128-bit output after shifting rows
+);
 
-    endmodule
+    // Break down the 128-bit input into 16 bytes (8 bits each)
+    wire [7:0] state [0:15];  // 16 bytes in the 4x4 matrix
+
+     assign {state[0], state[1], state[2], state[3],
+            state[4], state[5], state[6], state[7],
+            state[8], state[9], state[10], state[11],
+            state[12], state[13], state[14], state[15]} = state_in_row;
+
+
+    // Perform row shifting according to AES specifications
+    assign state_out_row = {
+        // Row 0: No shift
+        
+        state[0],  state[5],  state[10],  state[15],  
+       
+        // Row 1: Shift left by 1 byte (state[5], state[6], state[7], state[4])
+        state[4],  state[9],  state[14],  state[3],
+       
+        // Row 2: Shift left by 2 bytes (state[10], state[11], state[8], state[9])
+        state[8], state[13], state[2],  state[7],
+       
+        // Row 3: Shift left by 3 bytes (state[15], state[12], state[13], state[14])
+        state[12], state[1], state[6], state[11]
+    };
+
+endmodule
