@@ -68,7 +68,7 @@ endfunction
 
 genvar i;
 generate
-    for (i = 0; i < 4; i = i + 1) begin : mixcols
+    for (i = 0; i < 4; i = i + 1) begin 
         assign out_col[(i*32) +: 32] = mix_column(in_col[(i*32) +: 32]);
     end
 endgenerate
