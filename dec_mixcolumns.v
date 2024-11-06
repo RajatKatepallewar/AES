@@ -1,65 +1,77 @@
 `timescale 1ns / 1ps
 
-
-module mixcolumns(
-    input [127:0] state_in_col,
-    output [127:0] state_out_col
+module dec_mixcolumns(
+    input [127:0] in_col,
+    output [127:0] out_col
 );
 
-function [7:0] mb2; // Multiply by 2
+function [7:0] mb2; // Multiply by 2 in GF(2^8)
     input [7:0] x;
     begin 
-        if (x[7] == 1) 
-            mb2 = ((x << 1) ^ 8'h1b);
-        else 
-            mb2 = x << 1; 
+        mb2 = (x << 1) ^ ((x & 8'h80) ? 8'h1b : 8'h00); 
     end     
 endfunction
 
-function [7:0] mb3; // Multiply by 3
+function [7:0] mb3; // Multiply by 3 in GF(2^8)
     input [7:0] x;
     begin 
         mb3 = mb2(x) ^ x;
     end 
 endfunction
 
-function [7:0] mb9; // Multiply by 9
+function [7:0] mb9; // Multiply by 9 in GF(2^8)
     input [7:0] x;
     begin
         mb9 = mb2(mb2(mb2(x))) ^ x;
     end
 endfunction
 
-function [7:0] mbB; // Multiply by B (11 in decimal)
+function [7:0] mbB; // Multiply by B (11 in decimal) in GF(2^8)
     input [7:0] x;
     begin
         mbB = mb2(mb2(mb2(x)) ^ x) ^ x;
     end
 endfunction
 
-function [7:0] mbD; // Multiply by D (13 in decimal)
+function [7:0] mbD; // Multiply by D (13 in decimal) in GF(2^8)
     input [7:0] x;
     begin
         mbD = mb2(mb2(mb2(x) ^ x)) ^ x;
     end
 endfunction
 
-function [7:0] mbE; // Multiply by E (14 in decimal)
+function [7:0] mbE; // Multiply by E (14 in decimal) in GF(2^8)
     input [7:0] x;
     begin
         mbE = mb2(mb2(mb2(x) ^ x) ^ x);
     end
 endfunction
 
+function [31:0] mix_column;
+    input [31:0] col;
+    reg [7:0] b0, b1, b2, b3;
+    reg [7:0] h0, h1, h2, h3;
+    begin
+        b0 = col[31:24];
+        b1 = col[23:16];
+        b2 = col[15:8];
+        b3 = col[7:0];
+        
+        h0 = mbE(b0) ^ mbB(b1) ^ mbD(b2) ^ mb9(b3);
+        h1 = mb9(b0) ^ mbE(b1) ^ mbB(b2) ^ mbD(b3);
+        h2 = mbD(b0) ^ mb9(b1) ^ mbE(b2) ^ mbB(b3);
+        h3 = mbB(b0) ^ mbD(b1) ^ mb9(b2) ^ mbE(b3);
+
+        mix_column = {h0, h1, h2, h3};
+    end
+endfunction
+
 genvar i;
-
-generate 
-for (i = 0; i < 4; i = i + 1) begin : m_col
-
-    assign state_out_col[i*32 +:8]   = mbE(state_in_col[i*32 +:8])   ^ mbB(state_in_col[(i*32 + 8) +:8]) ^ mbD(state_in_col[(i*32 + 16) +:8]) ^ mb9(state_in_col[(i*32 + 24) +:8]);
-    assign state_out_col[(i*32 + 8) +:8]  = mb9(state_in_col[i*32 +:8])   ^ mbE(state_in_col[(i*32 + 8) +:8]) ^ mbB(state_in_col[(i*32 + 16) +:8]) ^ mbD(state_in_col[(i*32 + 24) +:8]);
-    assign state_out_col[(i*32 + 16) +:8] = mbD(state_in_col[i*32 +:8])   ^ mb9(state_in_col[(i*32 + 8) +:8]) ^ mbE(state_in_col[(i*32 + 16) +:8]) ^ mbB(state_in_col[(i*32 + 24) +:8]);
-    assign state_out_col[(i*32 + 24) +:8] = mbB(state_in_col[i*32 +:8])   ^ mbD(state_in_col[(i*32 + 8) +:8]) ^ mb9(state_in_col[(i*32 + 16) +:8]) ^ mbE(state_in_col[(i*32 + 24) +:8]);
-
-end
+generate
+    for (i = 0; i < 4; i = i + 1) begin : mixcols
+        assign out_col[(i*32) +: 32] = mix_column(in_col[(i*32) +: 32]);
+    end
 endgenerate
+
+
+endmodule
