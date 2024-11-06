@@ -1,6 +1,7 @@
 module aes_subbytes(
 input [127:0] state_in,
 output reg [127:0] state_out
+//input clk
 );
 reg [7:0] sbox [0:255]; //sbox lookup table 
 initial begin 
@@ -257,6 +258,7 @@ sbox[8'hF8] = 8'h41;
 sbox[8'hF9] = 8'h99; 
 sbox[8'hFA] = 8'h2D; 
 sbox[8'hFB] = 8'h0F; 
+sbox[8'hFC] = 8'hB0; 
 sbox[8'hFC] = 8'hB0; 
 sbox[8'hFD] = 8'h54; 
 sbox[8'hFE] = 8'hBB; 
