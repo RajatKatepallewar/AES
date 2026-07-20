@@ -1,35 +1,64 @@
-`include "keyexpansion.v"
-`include "addroundkey.v"
-`include "decryptround.v"
-`include "inverseshiftrows.v"
-`include "inversesubbytes.v"
+
+`timescale 1ns/1ps
+
+module tb_AES;
+
+reg  [127:0] in;
+reg  [127:0] key;
+reg  [2:0]   seed;
+
+wire [127:0] out;
+
+integer i;
+
+AES_Encrypt uut (
+    .in(in),
+    .seed(seed),
+    .key(key),
+    .out(out)
+);
+
+initial begin
+
+    // AES-128 Known Answer Test
+    in   = 128'h54776F204F6E65204E696E652054776F;
+    key  = 128'h5468617473206D79204B756E67204675;
+    seed = 3'b000;
+
+    #20;
+
+    $display("\n========================================");
+    $display("            AES-128 TEST");
+    $display("========================================");
+
+    $display("Plaintext  : %032h", in);
+    $display("Cipher Key : %032h", key);
+    $display("Seed       : %0d", seed);
+
+    $display("\n------------ ROUND KEYS ------------");
+    for(i = 0; i <= 10; i = i + 1)
+    begin
+        $display("Round Key[%0d] : %032h",
+                 i,
+                 uut.fullkeys[(128*i)+:128]);
+    end
+
+    $display("\n------------ ROUND STATES ------------");
+    for(i = 0; i <= 10; i = i + 1)
+    begin
+        $display("State[%0d] : %032h",
+                 i,
+                 uut.states[i]);
+    end
+
+    $display("\n------------ FINAL OUTPUT ------------");
+    $display("Ciphertext : %032h", out);
 
 
-module AES_Decrypt#(parameter N=128,parameter Nr=10,parameter Nk=4)(in,seed,key,out);
-input [127:0] in;
-input [2:0] seed;
-input [N-1:0] key;
-output [127:0] out;
-wire [(128*(Nr+1))-1 :0] fullkeys;
-wire [127:0] states [Nr+1:0] ;
-wire [127:0] afterSubBytes;
-wire [127:0] afterShiftRows;
 
-keyexpansion #(Nk,Nr) ke (key,seed,fullkeys);
 
-addroundkey addrk1 (in,states[0],fullkeys[((128*(Nr+1))-1)-:128]);
+    $finish;
 
-genvar i;
-generate
-	
-	for(i=1; i<Nr ;i=i+1)begin : loop
-		decryptround dr(states[i-1],fullkeys[(128*(Nr+1-i)-1) -:128],states[i]);
-		
-		end
-		inverseshiftrows sr(states[Nr-1],afterShiftRows);
-		inversesubbytes sb(afterShiftRows,afterSubBytes);
-		addroundkey addrk2(afterSubBytes,states[Nr],fullkeys[127:0]);
-			assign out=states[Nr];
+end
 
-endgenerate
 endmodule
