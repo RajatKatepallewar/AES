@@ -1,0 +1,35 @@
+`include "keyexpansion.v"
+`include "addroundkey.v"
+`include "decryptround.v"
+`include "inverseshiftrows.v"
+`include "inversesubbytes.v"
+
+
+module AES_Decrypt#(parameter N=128,parameter Nr=10,parameter Nk=4)(in,seed,key,out);
+input [127:0] in;
+input [2:0] seed;
+input [N-1:0] key;
+output [127:0] out;
+wire [(128*(Nr+1))-1 :0] fullkeys;
+wire [127:0] states [Nr+1:0] ;
+wire [127:0] afterSubBytes;
+wire [127:0] afterShiftRows;
+
+keyexpansion #(Nk,Nr) ke (key,seed,fullkeys);
+
+addroundkey addrk1 (in,states[0],fullkeys[((128*(Nr+1))-1)-:128]);
+
+genvar i;
+generate
+	
+	for(i=1; i<Nr ;i=i+1)begin : loop
+		decryptround dr(states[i-1],fullkeys[(128*(Nr+1-i)-1) -:128],states[i]);
+		
+		end
+		inverseshiftrows sr(states[Nr-1],afterShiftRows);
+		inversesubbytes sb(afterShiftRows,afterSubBytes);
+		addroundkey addrk2(afterSubBytes,states[Nr],fullkeys[127:0]);
+			assign out=states[Nr];
+
+endgenerate
+endmodule
